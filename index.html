@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Weekly / Monthly Work & Salary Tracker</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #eef2f5;
+      padding: 20px;
+    }
+    .container {
+      background-color: #fff;
+      padding: 20px 30px;
+      border-radius: 8px;
+      max-width: 700px;
+      margin: auto;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    h2 {
+      text-align: center;
+    }
+    label {
+      display: block;
+      margin-top: 15px;
+      font-weight: bold;
+    }
+    input[type="text"],
+    input[type="date"],
+    input[type="time"],
+    input[type="number"] {
+      padding: 6px;
+      margin-top: 5px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+    .row-inputs {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .row-inputs > * {
+      flex: 1;
+    }
+    button {
+      margin-top: 15px;
+      padding: 8px 12px;
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    table th, table td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: center;
+    }
+    #totals {
+      margin-top: 20px;
+      font-size: 16px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h2>Work Hours & Salary Tracker (Weekly / Monthly)</h2>
+
+    <div>
+      <label for="hourlyRate">Hourly Rate (in your currency):</label>
+      <input type="number" id="hourlyRate" placeholder="e.g. 100" min="0" step="0.01" required>
+    </div>
+
+    <div class="row-inputs" style="margin-top:20px;">
+      <div>
+        <label for="entryName">Employee Name:</label>
+        <input type="text" id="entryName" placeholder="Name" required>
+      </div>
+      <div>
+        <label for="entryDate">Date:</label>
+        <input type="date" id="entryDate" required>
+      </div>
+      <div>
+        <label for="entryStart">Start Time:</label>
+        <input type="time" id="entryStart" required>
+      </div>
+      <div>
+        <label for="entryEnd">End Time:</label>
+        <input type="time" id="entryEnd" required>
+      </div>
+      <div style="align-self: flex-end;">
+        <button id="addEntryBtn">Add Entry</button>
+      </div>
+    </div>
+
+    <table id="entriesTable" style="display:none;">
+      <thead>
+        <tr>
+          <th>Employee</th>
+          <th>Date</th>
+          <th>Start</th>
+          <th>End</th>
+          <th>Hours Worked</th>
+          <th>Salary</th>
+          <th>Remove</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- rows go here -->
+      </tbody>
+    </table>
+
+    <div id="totals">No entries yet.</div>
+
+  </div>
+
+  <script>
+    const hourlyRateInput = document.getElementById('hourlyRate');
+    const entryName = document.getElementById('entryName');
+    const entryDate = document.getElementById('entryDate');
+    const entryStart = document.getElementById('entryStart');
+    const entryEnd = document.getElementById('entryEnd');
+    const addEntryBtn = document.getElementById('addEntryBtn');
+    const entriesTable = document.getElementById('entriesTable');
+    const entriesTbody = entriesTable.querySelector('tbody');
+    const totalsDiv = document.getElementById('totals');
+
+    let entries = [];  // holds all added entries
+
+    function toHoursAndMinutes(totalMinutes) {
+      const hrs = Math.floor(totalMinutes / 60);
+      const mins = totalMinutes % 60;
+      return { hrs, mins };
+    }
+
+    function formatHoursMins(hrs, mins) {
+      return `${hrs}h ${mins}m`;
+    }
+
+    function recalcTotals() {
+      let totalMinutes = 0;
+      let totalSalary = 0;
+      const rate = parseFloat(hourlyRateInput.value);
+
+      if (isNaN(rate) || rate < 0) {
+        totalsDiv.textContent = 'Please set a valid hourly rate.';
+        return;
+      }
+
+      entries.forEach(e => {
+        totalMinutes += e.minutesWorked;
+        totalSalary += (e.minutesWorked / 60) * rate;
+      });
+
+      const hm = toHoursAndMinutes(totalMinutes);
+
+      totalsDiv.textContent = `Total Hours: ${formatHoursMins(hm.hrs, hm.mins)} — Total Salary: ${totalSalary.toFixed(2)}`;
+    }
+
+    function addEntry() {
+      const name = entryName.value.trim();
+      const date = entryDate.value;
+      const start = entryStart.value;
+      const end = entryEnd.value;
+      const rate = parseFloat(hourlyRateInput.value);
+
+      if (!name || !date || !start || !end) {
+        alert('Please fill in all fields for an entry.');
+        return;
+      }
+      if (isNaN(rate) || rate < 0) {
+        alert('Please enter a valid hourly rate first.');
+        return;
+      }
+
+      // compute worked minutes
+      const [sH, sM] = start.split(':').map(Number);
+      const [eH, eM] = end.split(':').map(Number);
+      let startDT = new Date(date);
+      startDT.setHours(sH, sM, 0, 0);
+      let endDT = new Date(date);
+      endDT.setHours(eH, eM, 0, 0);
+      if (endDT <= startDT) {
+        // assume next day
+        endDT.setDate(endDT.getDate() + 1);
+      }
+      const diffMs = endDT - startDT;
+      const minutesWorked = Math.floor(diffMs / (1000 * 60));
+
+      // compute salary for this entry
+      const salary = (minutesWorked / 60) * rate;
+
+      // add to entries list
+      const entryObj = {
+        name,
+        date,
+        start,
+        end,
+        minutesWorked,
+        salary
+      };
+      entries.push(entryObj);
+
+      // add row in table
+      const tr = document.createElement('tr');
+      const hoursMins = toHoursAndMinutes(minutesWorked);
+      tr.innerHTML = `
+        <td>${name}</td>
+        <td>${new Date(date).toLocaleDateString()}</td>
+        <td>${start}</td>
+        <td>${end}</td>
+        <td>${hoursMins.hrs}h ${hoursMins.mins}m</td>
+        <td>${salary.toFixed(2)}</td>
+        <td><button class="removeBtn">X</button></td>
+      `;
+      entriesTbody.append(tr);
+      entriesTable.style.display = '';  // show table
+
+      // remove row handler
+      tr.querySelector('.removeBtn').addEventListener('click', () => {
+        const idx = entries.indexOf(entryObj);
+        if (idx > -1) {
+          entries.splice(idx, 1);
+          tr.remove();
+          if (entries.length === 0) {
+            entriesTable.style.display = 'none';
+            totalsDiv.textContent = 'No entries yet.';
+          } else {
+            recalcTotals();
+          }
+        }
+      });
+
+      // clear input fields for next entry
+      entryName.value = '';
+      entryDate.value = '';
+      entryStart.value = '';
+      entryEnd.value = '';
+
+      // recalc totals
+      recalcTotals();
+    }
+
+    addEntryBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      addEntry();
+    });
+
+  </script>
+
+</body>
+</html>
